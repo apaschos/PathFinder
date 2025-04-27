@@ -28,6 +28,8 @@ bool Pathfinder::isValid(const Vec& point) const
 
 double Pathfinder::heuristic(const Vec& a, const Vec& b)
 {
+	// Use squared euclidean distance for now.
+	// No need to sqrt since we just compare.
 	double total = 0.0;
 	if (a.length() != b.length())
 	{
@@ -40,7 +42,7 @@ double Pathfinder::heuristic(const Vec& a, const Vec& b)
 		total += d * d;
 	}
 
-	return std::sqrt(total);
+	return total;
 }
 
 struct NodeGreater {
