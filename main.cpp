@@ -6,88 +6,107 @@
 #include "PathFinder.hpp"
 
 
-constexpr int CELL_SIZE = 50;
+constexpr int CELL_SIZE = 20;
 constexpr int GRID_SIZE = 50;
 constexpr int GRID_WIDTH = GRID_SIZE;
 constexpr int GRID_HEIGHT = GRID_SIZE;
+constexpr int MAX_RUNS = 10000;
 
-void drawGrid(sf::RenderWindow& window, const Grid& grid, const std::vector<Node>& path) {
-	sf::RectangleShape cell(sf::Vector2f(static_cast<float>(CELL_SIZE - 2), static_cast<float>(CELL_SIZE - 2)));
 
-	for (int y = 0; y < GRID_HEIGHT; ++y) {
-		for (int x = 0; x < GRID_WIDTH; ++x) {
-			if (grid[y][x] == 1)
-				cell.setFillColor(sf::Color::Black); // wall
-			else
-				cell.setFillColor(sf::Color::White); // empty
-
-			cell.setPosition(sf::Vector2f(static_cast<float>(x * CELL_SIZE), static_cast<float>(y * CELL_SIZE)));
-			window.draw(cell);
-		}
-	}
-
-	// Draw path
-	for (const auto& n : path) {
-		cell.setFillColor(sf::Color::Green);
-		cell.setPosition(sf::Vector2f(static_cast<float>(n.coords.x * CELL_SIZE), static_cast<float>(n.coords.y * CELL_SIZE)));
-		window.draw(cell);
-	}
-}
-
-int main()
+// Initialize grid.
+// Add some obstacles.
+void init_grid(Grid& grid)
 {
-	// Generate a map with obstacles.
-	std::cout << "Setting up the map.." << std::endl;
-	Grid grid(GRID_HEIGHT);
-	for (int i = 0; i < grid.size(); ++i)
+	for (int i = 0; i < grid.rows(); ++i)
 	{
-		grid[i] = std::vector<int>(GRID_WIDTH);
-		for (int j = 0; j < grid[i].size(); ++j)
+		for (int j = 0; j < grid.cols(); ++j)
 		{
-			grid[i][j] = 0;// distrib(gen);
+			grid.at(i, j) = 0;// distrib(gen);
 		}
 	}
 
 	//Add lines of obstacles
-	for (int i = 1; i < grid.size(); i += 4)
+	for (int i = 1; i < grid.rows(); i += 4)
 	{
-		for (int j = 0; j < grid[1].size() - 1; ++j)
+		for (int j = 0; j < grid.cols() - 1; ++j)
 		{
-			grid[i][j] = 1;
+			grid.at(i, j) = 1;
 		}
 	}
-	for (int j = 0; j < grid[1].size() - 1; ++j)
+	for (int j = 0; j < grid.cols() - 1; ++j)
 	{
-		grid[grid.size() - 1][j] = 1;
+		grid.at(grid.rows() - 1, j) = 1;
 	}
-	for (int i = 3; i < grid.size() - 1; i += 4)
+	for (int i = 3; i < grid.rows() - 1; i += 4)
 	{
-		for (int j = 1; j < grid[1].size(); ++j)
+		for (int j = 1; j < grid.cols(); ++j)
 		{
-			grid[i][j] = 1;
+			grid.at(i, j) = 1;
 		}
 	}
-	// Remove some obstacles randomly.
+	// Remove some obstacles randomly. Or semi-randomly
 	{
+#define FIXED_SEED 25U
+#ifdef FIXED_SEED
+		std::mt19937 gen(FIXED_SEED);
+#else
 		std::random_device rd;
 		std::mt19937 gen(rd());
+#endif
 		std::uniform_int_distribution<> distrib(2, GRID_SIZE - 2);
 
 		constexpr int NUM_OBSTACLES = 25;
 		for (int i = 0; i < NUM_OBSTACLES; ++i)
 		{
-			grid[distrib(gen)][distrib(gen)] = 0;
+			grid.at(distrib(gen), distrib(gen)) = 0;
 		}
 	}
-	std::cout << "Map ready.." << std::endl;
+}
 
+void drawGrid(sf::RenderWindow& window, const Grid& grid, const std::vector<Node*>& path)
+{
+	sf::RectangleShape cell(sf::Vector2f(static_cast<float>(CELL_SIZE - 2), static_cast<float>(CELL_SIZE - 2)));
+
+	for (int x = 0; x < grid.rows(); ++x) {
+		for (int y = 0; y < grid.cols(); ++y) {
+			if (grid.at(x, y) == 1)
+				cell.setFillColor(sf::Color::Black); // wall
+			else
+				cell.setFillColor(sf::Color::White); // empty
+
+			//cell.setPosition(sf::Vector2f(static_cast<float>(x * CELL_SIZE), static_cast<float>(y * CELL_SIZE)));
+			cell.setPosition(sf::Vector2f(static_cast<float>(y * CELL_SIZE), static_cast<float>(x * CELL_SIZE)));
+			window.draw(cell);
+		}
+	}
+
+	// Draw path
+	for (const auto& node : path) {
+		cell.setFillColor(sf::Color::Green);
+		//cell.setPosition(sf::Vector2f(static_cast<float>(node->coords.x * CELL_SIZE), static_cast<float>(node->coords.y * CELL_SIZE)));
+		cell.setPosition(sf::Vector2f(static_cast<float>(node->coords.y * CELL_SIZE), static_cast<float>(node->coords.x * CELL_SIZE)));
+		window.draw(cell);
+	}
+}
+
+
+int main()
+{
+	// Generate a map with obstacles.
+	Grid grid(GRID_HEIGHT, GRID_WIDTH);
+
+	//std::cout << "Setting up the map.." << std::endl;
+	init_grid(grid);
+	//std::cout << "Map ready.." << std::endl;
+
+	// Run the path finding algorithm.
 #if 0
 	Pathfinder pathfinder(grid);
 	auto start = std::chrono::high_resolution_clock::now();
-	auto path = pathfinder.findPath(Vec(0, 0), Vec(GRID_HEIGHT - 1, GRID_WIDTH - 1));
+	auto path = pathfinder.findPath(Vec(0, 0), Vec(grid.rows() - 1, grid.cols() - 1));
 	auto end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> elapsed = end - start;
-	std::cout << "Time: " << elapsed.count() << " seconds\n";
+	std::cout << std::setprecision(4) << std::fixed << "Time: " << elapsed.count() << " secs\n";
 
 	sf::RenderWindow window(sf::VideoMode(GRID_WIDTH * CELL_SIZE, GRID_HEIGHT * CELL_SIZE), "Pathfinding");
 
@@ -103,7 +122,6 @@ int main()
 		window.display();
 	}
 #else
-	constexpr int MAX_RUNS = 10000;
 	std::chrono::duration<double> elapsed(0);
 	std::chrono::steady_clock::time_point start, end;
 	Pathfinder pathfinder(grid);
@@ -113,6 +131,7 @@ int main()
 		pathfinder.findPath(Vec(0, 0), Vec(GRID_HEIGHT - 1, GRID_WIDTH - 1));
 		end = std::chrono::high_resolution_clock::now();
 		elapsed += end - start;
+		pathfinder.resetPool();
 	}
 	std::cout << std::setprecision(4) << std::fixed << "Time: " << elapsed.count() / MAX_RUNS * 1000000 << " microsecs\n";
 #endif
