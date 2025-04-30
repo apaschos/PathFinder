@@ -2,7 +2,11 @@
 #include <random>
 #include <chrono>
 
+//#define USE_GRAPHICS
+
+#ifdef USE_GRAPHICS
 #include <SFML/Graphics.hpp>
+#endif
 #include "PathFinder.hpp"
 
 
@@ -63,6 +67,7 @@ void init_grid(Grid& grid)
 	}
 }
 
+#ifdef USE_GRAPHICS
 void drawGrid(sf::RenderWindow& window, const Grid& grid, const std::vector<Node*>& path)
 {
 	sf::RectangleShape cell(sf::Vector2f(static_cast<float>(CELL_SIZE - 2), static_cast<float>(CELL_SIZE - 2)));
@@ -88,6 +93,7 @@ void drawGrid(sf::RenderWindow& window, const Grid& grid, const std::vector<Node
 		window.draw(cell);
 	}
 }
+#endif
 
 
 int main()
@@ -100,7 +106,7 @@ int main()
 	//std::cout << "Map ready.." << std::endl;
 
 	// Run the path finding algorithm.
-#if 0
+#ifdef USE_GRAPHICS
 	Pathfinder pathfinder(grid);
 	auto start = std::chrono::high_resolution_clock::now();
 	auto path = pathfinder.findPath(Vec(0, 0), Vec(grid.rows() - 1, grid.cols() - 1));
