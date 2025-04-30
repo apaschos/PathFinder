@@ -1,6 +1,7 @@
+#include <algorithm>
 #include <cmath>
-#include <unordered_set>
 #include <iostream>
+#include <unordered_set>
 
 #include "PathFinder.hpp"
 

@@ -1,6 +1,7 @@
+#include <chrono>
+#include <iomanip>
 #include <iostream>
 #include <random>
-#include <chrono>
 
 //#define USE_GRAPHICS
 
@@ -129,7 +130,7 @@ int main()
 	}
 #else
 	std::chrono::duration<double> elapsed(0);
-	std::chrono::steady_clock::time_point start, end;
+	std::chrono::high_resolution_clock::time_point start, end;
 	Pathfinder pathfinder(grid);
 	for (int run = 0; run < MAX_RUNS; ++run)
 	{
