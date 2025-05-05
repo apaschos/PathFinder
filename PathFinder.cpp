@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
-#include <unordered_set>
 
 #include "PathFinder.hpp"
 
@@ -11,7 +10,7 @@ constexpr size_t POOL_SIZE = 1000000;
 
 Pathfinder::Pathfinder(const Grid& grid)
 	: grid_(grid)
-	, nodePool(POOL_SIZE)
+	, nodePool_(POOL_SIZE)
 {
 }
 
@@ -46,65 +45,62 @@ double Pathfinder::heuristic(const Vec& a, const Vec& b)
 	return total;
 }
 
-struct NodeGreater {
-	bool operator()(const Node* lhs, const Node* rhs) const {
-		return *lhs > *rhs;
+void Pathfinder::checkNeighbour(Node* refNode, const Vec& newPoint, const Vec& dstPoint)
+{
+	if (!isValid(newPoint))
+	{
+		return;
 	}
-};
+
+	if (visitedNodes_.contains(newPoint))
+	{
+		return;
+	}
+	visitedNodes_.insert(newPoint);
+
+	double newCost = refNode->cost + 1.0;
+	Node* neighbour = nodePool_.acquire();
+	*neighbour = { newPoint, newCost, heuristic(newPoint, dstPoint), refNode };
+	potentialNodes_.push(neighbour);
+}
 
 std::vector<Node*> Pathfinder::findPath(const Vec& start, const Vec& end)
 {
-	std::priority_queue<Node*, std::vector<Node*>, NodeGreater> open;
-	std::unordered_set<Vec> visited;
+	potentialNodes_ = NodeQueue();
+	visitedNodes_.clear();
 
 	double cost = 0.0;
-	Node* newNode = nodePool.acquire();
+	Node* newNode = nodePool_.acquire();
 	*newNode = { Vec(start.x, start.y), cost, heuristic(start, end), nullptr };
-	open.push(newNode);
+	potentialNodes_.push(newNode);
 
-	while (!open.empty()) {
-		Node* current = open.top();
+	while (!potentialNodes_.empty()) {
+		Node* current = potentialNodes_.top();
+		potentialNodes_.pop();
 		//std::cout << "New node is (" << current.coords.x << ","
 		//	<< current.coords.y << ")" << std::endl;
-		open.pop();
 
-		if (current->coords == end) { // we arrived at the dest!
-			// rebuild path
-			std::vector<Node*> path;
-			path.reserve(open.size());
+		if (current->coords == end) { // We arrived at the dest!
+			// Rebuild path
+			std::vector<Node*> path(potentialNodes_.size());
 			Node* node = current;
+			int i = static_cast<int>(path.size()) - 1;
 			while (node) {
-				path.push_back(node);
+				path[i--] = node;
 				node = node->parent;
 			}
-			std::reverse(path.begin(), path.end());
+			path = std::vector<Node*>(path.begin() + i + 1, path.end());
 			return path;
 		}
 
 		// Check all neighbouring tiles
-
 		for (const auto& dpair : { std::pair
 			{ 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }, //prioritize diagonal moves
 			{ 1,0 }, { -1,0 }, { 0,-1 }, { 0,1 } }
 			)
 		{
-			const Vec newPoint = current->coords + dpair;
-
-			if (!isValid(newPoint))
-			{
-				continue;
-			}
-
-			if (visited.count(newPoint))
-			{
-				continue;
-			}
-			visited.insert(newPoint);
-
-			double newCost = current->cost + 1.0;
-			Node* neighbour = nodePool.acquire();
-			*neighbour = { newPoint, newCost, heuristic(newPoint, end), current };
-			open.push(neighbour);
+			const Vec newNode = current->coords + dpair;
+			checkNeighbour(current, newNode, end);
 		}
 	}
 
@@ -112,5 +108,5 @@ std::vector<Node*> Pathfinder::findPath(const Vec& start, const Vec& end)
 }
 
 void Pathfinder::resetPool() {
-	nodePool.releaseAll();
+	nodePool_.releaseAll();
 }
