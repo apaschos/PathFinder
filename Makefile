@@ -6,28 +6,48 @@ LDFLAGS := #-L/usr/lib/x86_64-linux-gnu -lsfml-graphics -lsfml-window -lsfml-sys
 # Project structure
 SRC_DIR := .
 BUILD_DIR := build
+RELEASE_DIR := $(BUILD_DIR)/release
+DEBUG_DIR := $(BUILD_DIR)/debug
 TARGET := pathfinder
 
 # Source files
 SRCS := $(wildcard $(SRC_DIR)/*.cpp)
-OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
-DEPS := $(OBJS:.o=.d)
+RELEASE_OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(RELEASE_DIR)/%.o,$(SRCS))
+DEBUG_OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(DEBUG_DIR)/%.o,$(SRCS))
+DEPS := $(RELEASE_OBJS:.o=.d) $(DEBUG_OBJS:.o=.d)
 
 # Header files
 HEADERS := PathFinder.hpp Vec.hpp ObjectPool.hpp Node.hpp Grid.hpp
 
-# Main rule
-all: $(BUILD_DIR)/$(TARGET)
+# Build configurations
+RELEASE_FLAGS := -O3 -DNDEBUG
+DEBUG_FLAGS := -O0 -g -DDEBUG -fsanitize=address -fno-omit-frame-pointer
+DEBUG_LDFLAGS := -fsanitize=address #-static-libasan
 
-# Link executable
-$(BUILD_DIR)/$(TARGET): $(OBJS)
+all: release
+
+release: $(RELEASE_DIR)/$(TARGET)
+
+debug: $(DEBUG_DIR)/$(TARGET)
+
+# Link executables
+$(RELEASE_DIR)/$(TARGET): $(RELEASE_OBJS)
 	@mkdir -p $(@D)
 	$(CXX) $(LDFLAGS) $^ -o $@
 
-# Compile source files
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp $(HEADERS)
+$(DEBUG_DIR)/$(TARGET): $(DEBUG_OBJS)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
+	$(CXX) $(LDFLAGS) $(DEBUG_LDFLAGS) $^ -o $@
+
+# Compile source files (release)
+$(RELEASE_DIR)/%.o: $(SRC_DIR)/%.cpp $(HEADERS)
+	@mkdir -p $(@D)
+	$(CXX) $(CXXFLAGS) $(RELEASE_FLAGS) -MMD -MP -c $< -o $@
+
+# Compile source files (debug)
+$(DEBUG_DIR)/%.o: $(SRC_DIR)/%.cpp $(HEADERS)
+	@mkdir -p $(@D)
+	$(CXX) $(CXXFLAGS) $(DEBUG_FLAGS) -MMD -MP -c $< -o $@
 
 # Include dependencies
 -include $(DEPS)
@@ -36,8 +56,11 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp $(HEADERS)
 clean:
 	rm -rf $(BUILD_DIR)
 
-# Run the program
-run: all
-	./$(BUILD_DIR)/$(TARGET)
+# Run targets
+run: release
+	./$(RELEASE_DIR)/$(TARGET)
 
-.PHONY: all clean run
+debug-run: debug
+	./$(DEBUG_DIR)/$(TARGET)
+
+.PHONY: all release debug clean run debug-run
